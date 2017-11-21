@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# algorithm.py : Implement the local search algorithms
+# algorithm.py : MLAlgorithm base class
 
 import abc
 import numpy as np
