@@ -1,4 +1,4 @@
-''' This code is still being modified before it can be integrated with the main class ```
+''' This code is still being modified before it can be integrated with the main class '''
 
 import numpy as np
 from math import log
