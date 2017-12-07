@@ -27,30 +27,26 @@ class NeuralNet(MLAlgorithm):
 
         def derivative(x): return self.sigmoid(x) * (1 - self.sigmoid(x))
 
-        # weights = [ np.random.uniform(low=-1/np.sqrt(layers_nodes[i-1]), high=1/np.sqrt(layers_nodes[i-1]),
-        # size=layers_nodes[i-1]) for i in range(layers-1)]
-        # features = np.hstack([features, np.ones([features.shape[0], 1], int)])
-        print(features.shape)
-        # a = {i: np.ones((1,layers_nodes[i]), dtype=np.float) for i in range(0, layers-1)}
         orient = orient.ravel().tolist()
-        #print(orient)
 
-        for i in range(5):
+        for i in range(10):
             a = []
             y = []
             count = 0
             for j, feature in enumerate(features):
-                #print(j)
                 feature = (feature - np.mean(feature)) / (np.std(feature))
                 inputv = defaultdict(list)
                 a.append(self.forward_prop(feature, self.layers, self.layers_nodes, self.weights, self.sigmoid, inputv))
                 y.append([0.0] * 4)
                 y[j][self.mappings[orient[j]]] = 1.0
                 self.backward_prop(a[j], y[j], feature, self.layers, self.layers_nodes, self.weights, self.sigmoid, derivative, inputv)
-                #print(a[j][2], mappings[orient[j]])
                 if a[j][2].index(max(a[j][2])) == self.mappings[orient[j]]:
                     count += 1
+
             print('Accuracy in training = {} after iteration {}'.format(count / features.shape[0], i))
+
+            # Need to comment this out later, calling here, to see how the iteration affects the test data accuracy
+            self.test()
 
     def forward_prop(self, feature, layers, layers_nodes, weights, activation, inputv):
         a = defaultdict(list)
@@ -61,37 +57,18 @@ class NeuralNet(MLAlgorithm):
             for node in range(layers_nodes[l]):
                 inputv[l].append(np.dot(weights[l][node], a[l - 1]))
                 a[l].append(activation(inputv[l][node]))
-
-            #a[l] = [activation(np.dot(weights[l][node], a[l - 1])) for node in range(layers_nodes[l]-1)]
-            '''if l != layers-1:
-                a[l].append(1)
-                inputv[l].append(1)'''
         return a
 
     def backward_prop(self, a, y, feature, layers, layers_nodes, weights, activation, derivative, inputv):
 
         delta = defaultdict(list)
-
-        '''for j in range(layers_nodes[layers - 1]-1):
-            delta[layers - 1] = []
-            inputv[layers - 1]
-            print(inputv[layers - 1], layers-1, j)
-            inputv[layers - 1][j]
-            derivative(inputv[layers - 1][j]) * 1
-            y[j] - a[layers - 1][j]'''
-
-
         delta[layers-1] = [derivative(inputv[layers-1][j]) * (y[j]-a[layers-1][j]) for j in range(layers_nodes[layers-1])]
-        #print(delta)
 
         for layer in range(layers-2, 0, -1):
-            #print(delta)
-            #print(weights)
             delta[layer] = [0] * layers_nodes[layer]
             for i in range(layers_nodes[layer]):
                 total = 0
                 for j in range(layers_nodes[layer + 1]):
-                    #print(i, j)
                     total += weights[layer+1][j][i] * delta[layer + 1][j]
                 delta[layer][i] = derivative(inputv[layer][i]) * total
 
@@ -99,9 +76,6 @@ class NeuralNet(MLAlgorithm):
             for i in range(layers_nodes[layer]):
                 for j in range(layers_nodes[layer + 1]):
                     weights[layer+1][j][i] = weights[layer+1][j][i] + 0.1 * a[layer][i] * delta[layer+1][j]
-
-        #print(delta)
-
 
     def test(self):
         test_file = 'test-data.txt'
@@ -111,7 +85,6 @@ class NeuralNet(MLAlgorithm):
         for i, feature in enumerate(features_test):
             feature = (feature - np.mean(feature)) / (np.std(feature))
             a = self.forward_prop(feature, self.layers, self.layers_nodes, self.weights, self.sigmoid, defaultdict(list))
-            #print(a)
 
             if a[2].index(max(a[2])) == self.mappings[orient_test[i]]:
                 count += 1
@@ -124,11 +97,7 @@ class NeuralNetTest(unittest.TestCase):
         layers_nodes = {0: 3, 1: 2, 2: 1}
         weights = {1: {0: np.array([0.5, 0.5, 0.5]),
                        1: np.array([0.1, 0.2, 0.3]), },
-                   # 2:np.array([0.5, 0.5, 0.5, 0.5]),
-                   # 3:np.array([0.5, 0.5, 0.5, 0.5])},
                    2: {0: np.array([0.1, 0.2, ]), }}
-        # 1:np.array([0.5, 0.5, 0.5, 0.5]),
-        # 2: np.array([0.1, 0.5, 0.5, 0.5])}}
         feature = np.array([2, 3, 4, ])
 
         train_file = 'train-data.txt'
@@ -153,6 +122,5 @@ nn.train()
 nn.test()
 
 # Run test every time
-
 nn_test = NeuralNetTest()
 nn_test.test()
