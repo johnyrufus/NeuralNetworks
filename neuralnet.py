@@ -10,34 +10,47 @@ from algorithm import MLAlgorithm
 
 class NeuralNet(MLAlgorithm):
 
+    def __init__(self, source_file, model_file):
+        self.layers_nodes = {0:192, 1:25, 2:4}
+        self.layers = len(self.layers_nodes)
+        self.weights = {i: {j: np.random.uniform(
+            low=-1/np.sqrt(self.layers_nodes[i-1]), high=1/np.sqrt(self.layers_nodes[i-1]), size=self.layers_nodes[i-1])
+            for j in range(self.layers_nodes[i])} for i in range(1, self.layers)}
+        self.sigmoid = lambda x: 1 / (1 + np.exp(-x))
+        self.mappings = {0: 0, 90: 1, 180: 2, 270: 3}
+        super().__init__(source_file, model_file)
+
     def train(self):
         orient, features = self.split_images_file(self.source_file)
         print(orient.shape)
         print(features.shape)
 
-        def sigmoid(x): return 1 / (1 + np.exp(-x))
-
-        layers_nodes = {0:192, 1:50, 2:4}
-        layers = len(layers_nodes)
+        def derivative(x): return self.sigmoid(x) * (1 - self.sigmoid(x))
         # weights = [ np.random.uniform(low=-1/np.sqrt(layers_nodes[i-1]), high=1/np.sqrt(layers_nodes[i-1]),
         # size=layers_nodes[i-1]) for i in range(layers-1)]
 
-        weights = {i: {j: np.random.uniform(
-            low=-1/np.sqrt(layers_nodes[i-1]), high=1/np.sqrt(layers_nodes[i-1]), size=layers_nodes[i-1])
-            for j in range(layers_nodes[i])} for i in range(1, layers)}
-        # print(weights)
         # features = np.hstack([features, np.ones([features.shape[0], 1], int)])
         print(features.shape)
         # a = {i: np.ones((1,layers_nodes[i]), dtype=np.float) for i in range(0, layers-1)}
         orient = orient.ravel().tolist()
         print(orient)
 
-        for i in range(2):
+        for i in range(1):
             a = []
+            y = []
+            count = 0
             for j, feature in enumerate(features):
                 #print(j)
                 inputv = defaultdict(list)
-                a.append(self.forward_prop(feature, layers, layers_nodes, weights, sigmoid, inputv))
+                feature = (feature-np.mean(feature))/(np.std(feature))
+                a.append(self.forward_prop(feature, self.layers, self.layers_nodes, self.weights, self.sigmoid, inputv))
+                y.append([0.0] * 4)
+                y[j][self.mappings[orient[j]]] = 1.0
+                self.backward_prop(a[j], y[j], feature, self.layers, self.layers_nodes, self.weights, self.sigmoid, derivative, inputv)
+                #print(a[j][2], mappings[orient[j]])
+                if a[j][2].index(max(a[j][2])) == self.mappings[orient[j]]:
+                    count += 1
+            print('Accuracy in training = {} after iteration {}'.format(count / features.shape[0], i))
 
     def forward_prop(self, feature, layers, layers_nodes, weights, activation, inputv):
         a = defaultdict(list)
@@ -122,6 +135,7 @@ train_file = 'train-data.txt'
 model_file = 'model_file_nn.txt'
 nn = NeuralNet(train_file, model_file)
 nn.train()
+
 
 # Run test every time
 
