@@ -26,23 +26,23 @@ class NeuralNet(MLAlgorithm):
         print(features.shape)
 
         def derivative(x): return self.sigmoid(x) * (1 - self.sigmoid(x))
+
         # weights = [ np.random.uniform(low=-1/np.sqrt(layers_nodes[i-1]), high=1/np.sqrt(layers_nodes[i-1]),
         # size=layers_nodes[i-1]) for i in range(layers-1)]
-
         # features = np.hstack([features, np.ones([features.shape[0], 1], int)])
         print(features.shape)
         # a = {i: np.ones((1,layers_nodes[i]), dtype=np.float) for i in range(0, layers-1)}
         orient = orient.ravel().tolist()
-        print(orient)
+        #print(orient)
 
-        for i in range(1):
+        for i in range(5):
             a = []
             y = []
             count = 0
             for j, feature in enumerate(features):
                 #print(j)
+                feature = (feature - np.mean(feature)) / (np.std(feature))
                 inputv = defaultdict(list)
-                feature = (feature-np.mean(feature))/(np.std(feature))
                 a.append(self.forward_prop(feature, self.layers, self.layers_nodes, self.weights, self.sigmoid, inputv))
                 y.append([0.0] * 4)
                 y[j][self.mappings[orient[j]]] = 1.0
@@ -102,8 +102,21 @@ class NeuralNet(MLAlgorithm):
 
         #print(delta)
 
+
     def test(self):
-       pass
+        test_file = 'test-data.txt'
+        orient_test, features_test = self.split_images_file(test_file)
+        orient_test = orient_test.ravel().tolist()
+        count = 0
+        for i, feature in enumerate(features_test):
+            feature = (feature - np.mean(feature)) / (np.std(feature))
+            a = self.forward_prop(feature, self.layers, self.layers_nodes, self.weights, self.sigmoid, defaultdict(list))
+            #print(a)
+
+            if a[2].index(max(a[2])) == self.mappings[orient_test[i]]:
+                count += 1
+        print('Accuracy in testing = {} '.format(count / features_test.shape[0]))
+
 
 class NeuralNetTest(unittest.TestCase):
     def test(self):
@@ -122,20 +135,22 @@ class NeuralNetTest(unittest.TestCase):
         model_file = 'model_file_nn.txt'
         nn = NeuralNet(train_file, model_file)
 
-        a = nn.forward_prop(feature, layers, layers_nodes, weights, lambda x: x, defaultdict(list))
+        inputv = defaultdict(list)
+        a = nn.forward_prop(feature, layers, layers_nodes, weights, lambda x: x, inputv)
         print(a)
 
         self.assertCountEqual(a[0], [2, 3, 4])
         self.assertCountEqual(a[1], [4.5, 2.0])
         self.assertCountEqual(a[2], [0.85000000000000009])
 
+        nn.backward_prop(a, [1], feature, layers, layers_nodes, weights, lambda x: x, lambda x: x, inputv)
 
 
 train_file = 'train-data.txt'
 model_file = 'model_file_nn.txt'
 nn = NeuralNet(train_file, model_file)
 nn.train()
-
+nn.test()
 
 # Run test every time
 
