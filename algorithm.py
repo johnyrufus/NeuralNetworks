@@ -9,6 +9,7 @@ class MLAlgorithm:
     def __init__(self, source_file, model_file):
         self.source_file = source_file
         self.model_file = model_file
+        self.p = 1
 
     def split_images_file(self, file):
         with open(file) as f:
@@ -16,7 +17,8 @@ class MLAlgorithm:
 
         arr = np.loadtxt(file, usecols=range(1, ncols))
         orient, features = np.split(arr, [1], axis=1)
-        return orient, features
+        nrows = int(features.shape[0] * self.p)
+        return orient[0:nrows, :], features[0:nrows, :]
 
     @abc.abstractmethod
     def train(self):
@@ -25,6 +27,10 @@ class MLAlgorithm:
     @abc.abstractmethod
     def test(self):
         return
+
+    def train_percent(self, p):
+        self.p = p
+        self.train()
 
 
 
