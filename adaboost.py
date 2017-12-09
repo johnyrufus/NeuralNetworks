@@ -186,3 +186,17 @@ with output_file:
 print('Results written successfully!')
 
 print('Correct (%):', percent_correct * 100)
+
+# This is supplemental to review results and find if errors are concentrated on a particular orientation
+import numpy as np
+import pandas as pd
+from sklearn.metrics import confusion_matrix
+
+data = pd.read_csv('test-data.txt', sep=" ", names = ['Image','Actual'], usecols =[0,1])
+guess_data = pd.read_csv('output.txt', sep=" ", names = ['Image','Guess'], usecols =[0,1])
+compare = data.merge(guess_data, on = 'Image')
+
+conf = confusion_matrix(compare['Actual'], compare['Guess'])
+norm_conf = conf.astype('float') / conf.sum(axis=1)[:, np.newaxis]
+
+print('This is the normalized confusion matrix:', norm_conf)
