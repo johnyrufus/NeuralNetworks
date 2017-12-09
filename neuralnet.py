@@ -115,12 +115,3 @@ class NeuralNetTest(unittest.TestCase):
         nn.backward_prop(a, [1], feature, layers, layers_nodes, weights, lambda x: x, lambda x: x, inputv)
 
 
-train_file = 'train-data.txt'
-model_file = 'model_file_nn.txt'
-nn = NeuralNet(train_file, model_file)
-nn.train()
-nn.test()
-
-# Run test every time
-nn_test = NeuralNetTest()
-nn_test.test()

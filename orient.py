@@ -34,3 +34,18 @@ def main():
 if __name__ == '__main__':
     main()
 
+def experiment_knn():
+    pass
+
+def experiment_adaboost():
+    pass
+
+def experiment_neuralnet():
+    train_file = 'train-data.txt'
+    model_file = 'model_file_nn.txt'
+    nn = NeuralNet(train_file, model_file)
+    nn.train()
+    nn.test()
+
+
+
