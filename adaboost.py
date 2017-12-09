@@ -14,6 +14,10 @@ def split_images_file(file):
     orient, features = np.split(arr, [1], axis=1)
     return orient, features
 
+def get_image_names(file):
+    with open(file):
+        names = np.genfromtxt(file, dtype='str', usecols=range(0, 1))
+    return names
 
 # Filter by images for a certain rotation to find out how often that pixel equality holds in the training set
 def filter_by_rot(training_array, rot):
@@ -106,6 +110,11 @@ def vote_on_image(image_array, classifier_info):
 
     return max(orient_votes, key=orient_votes.get)
 
+'''
+Methodology: 
+(1) Loop through all of the pixels in the test image - find those where i > j where i and j are individual pixels
+(2) Filter by different orientations in the test images, find the pairs that generate the most True
+'''
 
 # Read in the data as an array in the form [(orientation), (pixels)] for each image
 print('Reading in the training data...')
@@ -114,13 +123,7 @@ training_array = split_images_file(file)
 total_training_obs = len(training_array[0])
 print('Training data read successfully!\n')
 
-'''
-Methodology: 
-(1) Loop through all of the pixels in the test image - find those where i > j where i and j are individual pixels
-(2) Filter by different orientations in the test images, find the pairs that generate the most True
-'''
-
-all_stump_results = []
+# Train the model and save the results to 'model_file_adaboost.txt' to be used in the testing
 
 print('Beginning to train the model...')
 orientations = [0, 90, 180, 270]
@@ -132,17 +135,37 @@ classifier_dict = defaultdict(list)
 
 for orientation in orientations:
     weak_classifiers = get_weak_classifiers_and_errors(training_array, orientation, stumps)
+    print('This is the weak classifier', weak_classifiers)
     classifier_dict[orientation].append(weak_classifiers)
 print('Model trained.\n')
 
-print('Running the model against the test data...')
+print('Writing model results to model_file.txt...')
+
+training_parameters = open('model_file.txt', "w")
+for k, v in classifier_dict.items():
+    training_parameters.write(str(k) + ':'+ str(v)+'\n')
+training_parameters.close()
+
+print('File written successfully.\n')
+
+print('Running the model against the test data...\n')
+print('Reading in the model parameters...')
+
+model = defaultdict(list)
+with open('model_file.txt') as f:
+    for line in f:
+        model_line = line.rstrip('\n').split(':')
+        model[int(model_line[0])] = eval(model_line[1])
+
+print('Model read in successfully!\n\n')
+
 image_file = 'test-data.txt'
 test_orientations = split_images_file(image_file)[0]
 images = split_images_file(image_file)[1]
 
 guesses = []
 for image in images:
-    guesses.append(vote_on_image(image, classifier_dict))
+    guesses.append(vote_on_image(image, model))
 
 guesses = np.array(guesses)
 
@@ -152,4 +175,14 @@ for i, j in zip(guesses, test_orientations):
         total_correct += 1
 percent_correct = total_correct / len(guesses)
 print('Testing complete!')
+
+print('Writing results to output.txt...')
+
+output_file = open('output.txt', "w")
+with output_file:
+    for name, guess in zip(get_image_names(image_file), guesses):
+        output_file.write(name + ' ' + str(guess) + '\n' )
+
+print('Results written successfully!')
+
 print('Correct (%):', percent_correct * 100)
