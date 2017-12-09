@@ -1,202 +1,175 @@
 #!/usr/bin/env python3
 # adaboost.py : Adaboost implementation
 
+from algorithm import MLAlgorithm
+from collections import defaultdict
 import numpy as np
 from math import log
-from collections import defaultdict
 
+class Adaboost(MLAlgorithm):
 
-def split_images_file(file):
-    with open(file) as f:
-        ncols = len(f.readline().split(' '))
+    def get_image_names(self):
+        with open(self.source_file):
+            names = np.genfromtxt(self.source_file, dtype='str', usecols=range(0, 1))
+        return names
 
-    arr = np.loadtxt(file, usecols=range(1, ncols))
-    orient, features = np.split(arr, [1], axis=1)
-    return orient, features
+    # Filter by images for a certain rotation to find out how often that pixel equality holds in the training set
+    def filter_by_rot(self, training_array, rot):
+        img_rot = []
+        for i, x in enumerate(training_array[0][:]):
+            if x == rot:
+                img_rot.append(training_array[1][i])
+        return np.array(img_rot)
 
-def get_image_names(file):
-    with open(file):
-        names = np.genfromtxt(file, dtype='str', usecols=range(0, 1))
-    return names
+    # When choosing stumps, use this function to update the weights for observations that already selected classifiers
+    # did not perform well with by overweighting those incorrect observations - all weights are normalized to sum to 1
+    def update_weights(self, current_weights, error_rate):
+        un_normalized_weights = np.array([error_rate if i == 1 else i for i in current_weights])
+        new_weights = np.multiply(current_weights, un_normalized_weights)
+        normalized_weights = new_weights / sum(new_weights)
 
-# Filter by images for a certain rotation to find out how often that pixel equality holds in the training set
-def filter_by_rot(training_array, rot):
-    img_rot = []
-    for i, x in enumerate(training_array[0][:]):
-        if x == rot:
-            img_rot.append(training_array[1][i])
-    return np.array(img_rot)
+        return normalized_weights
 
+    # Go through the training set by a certain rotation and count the instances when one pixel column is greater than
+    # another pixel column --> find the highest frequencies to decide what the stumps should be
+    def get_weak_classifiers_and_errors(self, training_array, orientation, num_stumps):
+        orientation_array = self.filter_by_rot(training_array, orientation)
+        (rot_rows, pixels) = orientation_array.shape
 
-# When choosing stumps, use this function to update the weights for observations that already selected classifiers
-# did not perform well with by overweighting those incorrect observations - all weights are normalized to sum to 1
-def update_weights(current_weights, error_rate):
-    un_normalized_weights = np.array([error_rate if i == 1 else i for i in current_weights])
-    new_weights = np.multiply(current_weights, un_normalized_weights)
-    normalized_weights = new_weights / sum(new_weights)
+        # Start with an equal weight for each pixel combination
+        classifier_weight = np.array([1 / rot_rows for obs in range(rot_rows)])
 
-    return normalized_weights
+        # Store the pixel combinations that yielded the most True
+        stumps_chosen = []
+        # Store the errors to be able to make a vote for each stump
+        errors = []
 
-# Go through the training set by a certain rotation and count the instances when one pixel column is greater than
-# another pixel column --> find the highest frequencies to decide what the stumps should be
-def get_weak_classifiers_and_errors(training_array, orientation, num_stumps):
-    orientation_array = filter_by_rot(training_array, orientation)
-    (rot_rows, pixels) = orientation_array.shape
+        # Start collecting the number of stumps desired
+        for i in range(num_stumps):
+            best_score = -np.inf
+            best_pair = (-9999, -9999)
 
-    # Start with an equal weight for each pixel combination
-    classifier_weight = np.array([1 / rot_rows for obs in range(rot_rows)])
+            # Evaluate each pixel in the training images to find which are most important for each type of rotated image
+            for i in range(pixels):
+                for j in range(pixels):
+                    # Don't compare a column to itself or if the stump has already been selected/stored
+                    if i != j and (i, j) not in stumps_chosen and (j, i) not in stumps_chosen:
+                        # Find out the result of each pixel column comparsion
+                        # as an integer (1 = T, 0 = F) within this rotation
+                        num_true = np.greater(orientation_array[:, i], orientation_array[:, j]).astype(int)
+                        # Find the weighted score of each pair/classifier
+                        weighted_score = np.sum(np.multiply(num_true, classifier_weight))
+                        # Find the weighted total of each combination and locate the highest scoring pair
+                        # Note: simple comparison is used for speed...
+                        # adding to dict & finding the minimum is nearly 8x slower
 
-    # Store the pixel combinations that yielded the most True
-    stumps_chosen = []
-    # Store the errors to be able to make a vote for each stump
-    errors = []
+                        if weighted_score > best_score:
+                            best_score = weighted_score
+                            best_pair = (i, j)
 
-    # Start collecting the number of stumps desired
-    for i in range(num_stumps):
-        best_score = -np.inf
-        best_pair = (-9999, -9999)
+                            # Since we filtered the data to a particular orientation, these are deemed to be correct, so
+                            # calculate the prediction rate for this classifier
+                            error_rate = (rot_rows - sum(num_true)) / rot_rows
 
-        # Evaluate each pixel in the training images to find which are most important for each type of rotated image
-        for i in range(pixels):
-            for j in range(pixels):
-                # Don't compare a column to itself or if the stump has already been selected/stored
-                if i != j and (i, j) not in stumps_chosen and (j, i) not in stumps_chosen:
-                    # Find out the result of each pixel column comparsion
-                    # as an integer (1 = T, 0 = F) within this rotation
-                    num_true = np.greater(orientation_array[:, i], orientation_array[:, j]).astype(int)
-                    # Find the weighted score of each pair/classifier
-                    weighted_score = np.sum(np.multiply(num_true, classifier_weight))
-                    # Find the weighted total of each combination and locate the highest scoring pair
-                    # Note: simple comparison is used for speed...
-                    # adding to dict & finding the minimum is nearly 8x slower
+            # Redefine the weights used in the scoring
+            classifier_weight = self.update_weights(classifier_weight, error_rate)
 
-                    if weighted_score > best_score:
-                        best_score = weighted_score
-                        best_pair = (i, j)
+            # Add the highest score to the collected list of stumps for this rotation
+            stumps_chosen.append(best_pair)
+            errors.append(0.5 * log((1 - error_rate) / error_rate))
 
-                        # Since we filtered the data to a particular orientation, these are deemed to be correct, so
-                        # calculate the prediction rate for this classifier
-                        error_rate = (rot_rows - sum(num_true)) / rot_rows
+        return stumps_chosen, errors
 
-        # Redefine the weights used in the scoring
-        classifier_weight = update_weights(classifier_weight, error_rate)
+    # Start looking at the test data
+    def vote_on_image(self, image_array, classifier_info):
+        # Initialize an empty dictionary that will be used to store the votes for each orientation
+        orient_votes = defaultdict(float)
 
-        # Add the highest score to the collected list of stumps for this rotation
-        stumps_chosen.append(best_pair)
-        errors.append(0.5 * log((1 - error_rate) / error_rate))
+        # Loop through the (classifier, error) for each stump in a particular orientation
+        for k, v in classifier_info.items():
+            votes = []
+            classifiers = v[0][0]
+            errors = v[0][1]
+            # Compare the stumps with the image values in those stumps to begin voting
+            for classifier in classifiers:
+                col1, col2 = classifier[0], classifier[1]
+                if image_array[col1] > image_array[col2]:
+                    votes.append(1)
+                else:
+                    votes.append(0)
+            # Weight each aggregate count by the stumps their error rate
+            orient_votes[k] = sum(np.multiply(votes, errors))
 
-    return stumps_chosen, errors
+        return max(orient_votes, key=orient_votes.get)
 
+    def train(self):
+        # orient, features = self.split_images_file(self.source_file)
+        #
+        # Read in the data as an array in the form [(orientation), (pixels)] for each image
+        print('Reading in the training data...')
+        # file = 'train-data.txt'
+        training_array = self.split_images_file(self.source_file)
+        total_training_obs = len(training_array[0])
+        print('Training data read successfully!\n')
 
-# Start looking at the test data
-def vote_on_image(image_array, classifier_info):
-    # Initialize an empty dictionary that will be used to store the votes for each orientation
-    orient_votes = defaultdict(float)
+        # Train the model and save the results to 'model_file_adaboost.txt' to be used in the testing
+        print('Beginning to train the model via Adaboost...')
+        orientations = [0, 90, 180, 270]
+        # Choose the number of stumps to use in classifying each image
+        stumps = 4
 
-    # Loop through the (classifier, error) for each stump in a particular orientation
-    for k, v in classifier_info.items():
-        votes = []
-        classifiers = v[0][0]
-        errors = v[0][1]
-        # Compare the stumps with the image values in those stumps to begin voting
-        for classifier in classifiers:
-            col1, col2 = classifier[0], classifier[1]
-            if image_array[col1] > image_array[col2]:
-                votes.append(1)
-            else:
-                votes.append(0)
-        # Weight each aggregate count by the stumps their error rate
-        orient_votes[k] = sum(np.multiply(votes, errors))
+        # Initialize a dictionary to store the results in (columns used to classify/errors) in
+        classifier_dict = defaultdict(list)
 
-    return max(orient_votes, key=orient_votes.get)
+        for orientation in orientations:
+            weak_classifiers = self.get_weak_classifiers_and_errors(training_array, orientation, stumps)
+            print('This is the weak classifier', weak_classifiers)
+            classifier_dict[orientation].append(weak_classifiers)
+        print('Model trained!\n')
 
-'''
-Methodology: 
-(1) Loop through all of the pixels in the test image - find those where i > j where i and j are individual pixels
-(2) Filter by different orientations in the test images, find the pairs that generate the most True
-'''
+        print('Writing model results to', self.model_file + '...')
 
-# Read in the data as an array in the form [(orientation), (pixels)] for each image
-print('Reading in the training data...')
-file = 'train-data.txt'
-training_array = split_images_file(file)
-total_training_obs = len(training_array[0])
-print('Training data read successfully!\n')
+        training_parameters = open(self.model_file, "w")
+        for k, v in classifier_dict.items():
+            training_parameters.write(str(k) + ':' + str(v) + '\n')
+        training_parameters.close()
 
-# Train the model and save the results to 'model_file_adaboost.txt' to be used in the testing
+        print('Model written successfully to', self.model_file + '!')
 
-print('Beginning to train the model...')
-orientations = [0, 90, 180, 270]
-# Choose the number of stumps to use in classifying each image
-stumps = 4
+    def test(self):
 
-# Initialize a dictionary to store the results in (columns used to classify/errors) in
-classifier_dict = defaultdict(list)
+        model = defaultdict(list)
+        with open(self.model_file) as f:
+            for line in f:
+                model_line = line.rstrip('\n').split(':')
+                model[int(model_line[0])] = eval(model_line[1])
 
-for orientation in orientations:
-    weak_classifiers = get_weak_classifiers_and_errors(training_array, orientation, stumps)
-    print('This is the weak classifier', weak_classifiers)
-    classifier_dict[orientation].append(weak_classifiers)
-print('Model trained.\n')
+        print('Model read in successfully!')
 
-print('Writing model results to model_file.txt...')
+        image_file = self.source_file
+        test_orientations = self.split_images_file(image_file)[0]
+        images = self.split_images_file(image_file)[1]
 
-training_parameters = open('model_file.txt', "w")
-for k, v in classifier_dict.items():
-    training_parameters.write(str(k) + ':'+ str(v)+'\n')
-training_parameters.close()
+        guesses = []
+        for image in images:
+            guesses.append(self.vote_on_image(image, model))
 
-print('File written successfully.\n')
+        guesses = np.array(guesses)
 
-print('Running the model against the test data...\n')
-print('Reading in the model parameters...')
+        total_correct = 0
+        for i, j in zip(guesses, test_orientations):
+            if i == j:
+                total_correct += 1
+        percent_correct = total_correct / len(guesses)
+        print('Testing complete!')
 
-model = defaultdict(list)
-with open('model_file.txt') as f:
-    for line in f:
-        model_line = line.rstrip('\n').split(':')
-        model[int(model_line[0])] = eval(model_line[1])
+        print('Writing results to output.txt...')
 
-print('Model read in successfully!\n\n')
+        output_file = open('output.txt', "w")
+        with output_file:
+            for name, guess in zip(self.get_image_names(), guesses):
+                output_file.write(name + ' ' + str(guess) + '\n')
 
-image_file = 'test-data.txt'
-test_orientations = split_images_file(image_file)[0]
-images = split_images_file(image_file)[1]
+        print('Results written to output.txt successfully!')
 
-guesses = []
-for image in images:
-    guesses.append(vote_on_image(image, model))
-
-guesses = np.array(guesses)
-
-total_correct = 0
-for i, j in zip(guesses, test_orientations):
-    if i == j:
-        total_correct += 1
-percent_correct = total_correct / len(guesses)
-print('Testing complete!')
-
-print('Writing results to output.txt...')
-
-output_file = open('output.txt', "w")
-with output_file:
-    for name, guess in zip(get_image_names(image_file), guesses):
-        output_file.write(name + ' ' + str(guess) + '\n' )
-
-print('Results written successfully!')
-
-print('Correct (%):', percent_correct * 100)
-
-# This is supplemental to review results and find if errors are concentrated on a particular orientation
-import numpy as np
-import pandas as pd
-from sklearn.metrics import confusion_matrix
-
-data = pd.read_csv('test-data.txt', sep=" ", names = ['Image','Actual'], usecols =[0,1])
-guess_data = pd.read_csv('output.txt', sep=" ", names = ['Image','Guess'], usecols =[0,1])
-compare = data.merge(guess_data, on = 'Image')
-
-conf = confusion_matrix(compare['Actual'], compare['Guess'])
-norm_conf = conf.astype('float') / conf.sum(axis=1)[:, np.newaxis]
-
-print('This is the normalized confusion matrix:', norm_conf)
+        print('Correct (%):', percent_correct * 100)
