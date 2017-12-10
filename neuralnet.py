@@ -18,6 +18,7 @@ class NeuralNet(MLAlgorithm):
             for j in range(self.layers_nodes[i])} for i in range(1, self.layers)}
         self.sigmoid = lambda x: 1 / (1 + np.exp(-x))
         self.mappings = {0: 0, 90: 1, 180: 2, 270: 3}
+        self.iterations = 10
         super().__init__(source_file, model_file)
 
     def train(self):
@@ -28,11 +29,11 @@ class NeuralNet(MLAlgorithm):
         def derivative(x): return self.sigmoid(x) * (1 - self.sigmoid(x))
 
         orient = orient.ravel().tolist()
-
-        for i in range(10):
+        count = 0
+        for i in range(self.iterations):
             a = []
             y = []
-            count = 0
+
             for j, feature in enumerate(features):
                 feature = (feature - np.mean(feature)) / (np.std(feature))
                 inputv = defaultdict(list)
@@ -43,10 +44,11 @@ class NeuralNet(MLAlgorithm):
                 if a[j][2].index(max(a[j][2])) == self.mappings[orient[j]]:
                     count += 1
 
-            print('Accuracy in training = {} after iteration {}'.format(count / features.shape[0], i))
+        #print('Accuracy in training = {} after iteration'.format(count / features.shape[0]))
+        return count / features.shape[0]
 
             # Need to comment this out later, calling here, to see how the iteration affects the test data accuracy
-            self.test()
+            #self.test()
 
     def forward_prop(self, feature, layers, layers_nodes, weights, activation, inputv):
         a = defaultdict(list)
@@ -89,6 +91,7 @@ class NeuralNet(MLAlgorithm):
             if a[2].index(max(a[2])) == self.mappings[orient_test[i]]:
                 count += 1
         print('Accuracy in testing = {} '.format(count / features_test.shape[0]))
+        return count / features_test.shape[0]
 
 
 class NeuralNetTest(unittest.TestCase):

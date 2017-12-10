@@ -5,6 +5,10 @@ from knn import KNN
 from adaboost import Adaboost
 from neuralnet import NeuralNet
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 import sys
 
 
@@ -43,9 +47,28 @@ def experiment_adaboost():
 def experiment_neuralnet():
     train_file = 'train-data.txt'
     model_file = 'model_file_nn.txt'
-    nn = NeuralNet(train_file, model_file)
-    nn.train()
-    nn.test()
+
+    trainacc = []
+    testacc = []
+    x = []
+
+    for i in range(10, 151, 10):
+        nn = NeuralNet(train_file, model_file)
+        nn.iterations = 3
+        nn.layers_nodes[1] = i
+        x.append(i)
+        trainacc.append(nn.train())
+        testacc.append(nn.test())
+
+
+    plt.figure()
+    plt.plot(x, trainacc, '--r', label='Training Accuracy')
+    plt.plot(x, testacc, '--b', label='Testing Accuracy')
+    plt.title('Accuracy vs Hidden Nodes')
+    plt.xlabel('Hidden Nodes')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.savefig('AccuracyHiddenNodes.png', dpi=100)
 
 
 
