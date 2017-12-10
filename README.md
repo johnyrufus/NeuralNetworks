@@ -27,6 +27,37 @@ For the most part, our algorithm generally seemed to exhibit uniform errors in i
 
 ![confusion](https://github.iu.edu/storage/user/9000/files/ddefca5e-dd29-11e7-9289-33fb5a323000)
 
+With respect to the actual classifiers chosen, we were pleased to find that as the sample size varied, our Adaboost implementation fine tuned the pixel value it used to decipher a general orientation, but remained where we would expect when trying to figure this out. Namely, the classifiers that were chosen were near the edges of the picture. This aligns with our intuition as we would inspect the top of an image first and if we saw a lot of green, possibly indicating grass, this image is probably upside down. This relationship can be seen in the following images below. 
+
+![rot0](https://github.iu.edu/storage/user/9000/files/02797c28-dd32-11e7-9766-4230167726b8)
+![rot90](https://github.iu.edu/storage/user/9000/files/ca31205e-dd32-11e7-9add-28c526b2aae2)
+![rot180](https://github.iu.edu/storage/user/9000/files/ca4355ee-dd32-11e7-9f82-b1472b530e04)
+![rot270](https://github.iu.edu/storage/user/9000/files/ca55616c-dd32-11e7-8f97-8c54958878de)
+
+In our testing, we saw relative stability in the prediction rate versus sample size. However, one could expect these accuracies around a smaller sample sizes to be more variable depending on the section of the training data that is chosen.
+
+![accuracy_size](https://github.iu.edu/storage/user/9000/files/dab952d0-dd36-11e7-8fd6-d315c990dfd3)
+
+#### Sample Images:
+When analyzing some of the images that were correctly classified, it becomes clear that the Adaboost algorithm with 4 classifiers does well in photos that have distinct color disparaties near the edges of the picture. In these four examples, there is a clear difference between the top of the picture (blue) and the bottom (green). This could prove to be a helpful decision stump for a particular orientation. 
+
+![correct1](https://github.iu.edu/storage/user/9000/files/b809dcfc-dd39-11e7-8994-f66e33337837)
+![correct2](https://github.iu.edu/storage/user/9000/files/b818e8a0-dd39-11e7-8853-38c5fadcea2d)
+![correct3](https://github.iu.edu/storage/user/9000/files/b82ad1fa-dd39-11e7-8574-3c7dc983fdb2)
+![correct4](https://github.iu.edu/storage/user/9000/files/b84f3c48-dd39-11e7-844b-7d3a4fd47989)
+
+Here, one of the incorrectly classified images is a landscape, which we assumed would do well with Adaboost, but on further inspection it becomes clear why this image failed. In the corners, trees are shown that block the blue sky and give the classifier the impression that whole part of the picture is green. For the remaining images, there is little color disparity throughout the corners, so Adaboost struggled to classify these correctly.  
+![incorrect1](https://github.iu.edu/storage/user/9000/files/b862f882-dd39-11e7-9882-457a86755fa1)
+![incorrect2](https://github.iu.edu/storage/user/9000/files/b83d8dfe-dd39-11e7-8816-15f2e791aed5)
+![incorrect3](https://github.iu.edu/storage/user/9000/files/b8758c86-dd39-11e7-9125-1e510ab33043)
+![incorrect4](https://github.iu.edu/storage/user/9000/files/b885f09e-dd39-11e7-88c9-1827cab42684)
+
+
+
+
+
+
+
 
 
 ## Neural Net
