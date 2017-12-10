@@ -4,6 +4,7 @@
 from knn import KNN
 from adaboost import Adaboost
 from neuralnet import NeuralNet
+import numpy as np
 
 import matplotlib
 matplotlib.use('Agg')
@@ -56,6 +57,10 @@ def experiment_neuralnet():
         nn = NeuralNet(train_file, model_file)
         nn.iterations = 3
         nn.layers_nodes[1] = i
+        nn.weights = {i: {j: np.random.uniform(
+            low=-1 / np.sqrt(nn.layers_nodes[i - 1]), high=1 / np.sqrt(nn.layers_nodes[i - 1]),
+            size=nn.layers_nodes[i - 1])
+            for j in range(nn.layers_nodes[i])} for i in range(1, nn.layers)}
         x.append(i)
         trainacc.append(nn.train())
         testacc.append(nn.test())
