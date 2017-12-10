@@ -36,9 +36,6 @@ def main():
         algorithm(source_file, model_file).test()
 
 
-if __name__ == '__main__':
-    main()
-
 def experiment_knn():
     pass
 
@@ -76,4 +73,5 @@ def experiment_neuralnet():
     plt.savefig('AccuracyHiddenNodes.png', dpi=100)
 
 
-
+if __name__ == '__main__':
+    main()
