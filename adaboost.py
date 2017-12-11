@@ -116,14 +116,15 @@ class Adaboost(MLAlgorithm):
         print('Beginning to train the model via Adaboost...')
         orientations = [0, 90, 180, 270]
         # Choose the number of stumps to use in classifying each image
-        stumps = 4
+        stumps = 10
+        print('Using', stumps,' weak classifiers per orientation.')
 
         # Initialize a dictionary to store the results in (columns used to classify/errors) in
         classifier_dict = defaultdict(list)
 
         for orientation in orientations:
             weak_classifiers = self.get_weak_classifiers_and_errors(training_array, orientation, stumps)
-            print('This is the weak classifier', weak_classifiers)
+            print('Classifiers completed for orientation:', orientation)
             classifier_dict[orientation].append(weak_classifiers)
         print('Model trained!\n')
 
