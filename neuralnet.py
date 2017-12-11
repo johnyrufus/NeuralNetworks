@@ -11,14 +11,16 @@ from algorithm import MLAlgorithm
 class NeuralNet(MLAlgorithm):
 
     def __init__(self, source_file, model_file):
-        self.layers_nodes = {0:192, 1:25, 2:4}
+        self.layers_nodes = {0: 192, 1: 30, 2: 4}
         self.layers = len(self.layers_nodes)
         self.weights = {i: {j: np.random.uniform(
-            low=-1/np.sqrt(self.layers_nodes[i-1]), high=1/np.sqrt(self.layers_nodes[i-1]), size=self.layers_nodes[i-1])
+            low=-1 / np.sqrt(self.layers_nodes[i - 1]), high=1 / np.sqrt(self.layers_nodes[i - 1]),
+            size=self.layers_nodes[i - 1])
             for j in range(self.layers_nodes[i])} for i in range(1, self.layers)}
         self.sigmoid = lambda x: 1 / (1 + np.exp(-x))
         self.mappings = {0: 0, 90: 1, 180: 2, 270: 3}
-        self.iterations = 10
+        self.reverse_mappings = {0: 0, 1:90, 2:180, 3:270}
+        self.iterations = 5
         super().__init__(source_file, model_file)
 
     def train(self):
@@ -29,11 +31,11 @@ class NeuralNet(MLAlgorithm):
         def derivative(x): return self.sigmoid(x) * (1 - self.sigmoid(x))
 
         orient = orient.ravel().tolist()
-        count = 0
+
         for i in range(self.iterations):
             a = []
             y = []
-
+            count = 0
             for j, feature in enumerate(features):
                 feature = (feature - np.mean(feature)) / (np.std(feature))
                 inputv = defaultdict(list)
@@ -44,11 +46,7 @@ class NeuralNet(MLAlgorithm):
                 if a[j][2].index(max(a[j][2])) == self.mappings[orient[j]]:
                     count += 1
 
-        #print('Accuracy in training = {} after iteration'.format(count / features.shape[0]))
-        return count / features.shape[0]
-
-            # Need to comment this out later, calling here, to see how the iteration affects the test data accuracy
-            #self.test()
+        self.save(self.weights, self.model_file)
 
     def forward_prop(self, feature, layers, layers_nodes, weights, activation, inputv):
         a = defaultdict(list)
@@ -80,18 +78,22 @@ class NeuralNet(MLAlgorithm):
                     weights[layer+1][j][i] = weights[layer+1][j][i] + 0.1 * a[layer][i] * delta[layer+1][j]
 
     def test(self):
-        test_file = 'test-data.txt'
-        orient_test, features_test = self.split_images_file(test_file)
+        self.weights = self.load(self.model_file)
+        orient_test, features_test = self.split_images_file(self.source_file)
         orient_test = orient_test.ravel().tolist()
         count = 0
+        predicted = []
         for i, feature in enumerate(features_test):
             feature = (feature - np.mean(feature)) / (np.std(feature))
             a = self.forward_prop(feature, self.layers, self.layers_nodes, self.weights, self.sigmoid, defaultdict(list))
-
+            predicted.append(self.reverse_mappings[a[2].index(max(a[2]))])
             if a[2].index(max(a[2])) == self.mappings[orient_test[i]]:
                 count += 1
         print('Accuracy in testing = {} '.format(count / features_test.shape[0]))
-        return count / features_test.shape[0]
+        output_file = open('output.txt', "w")
+        with output_file:
+            for name, guess in zip(self.get_image_names(), predicted):
+                output_file.write(name + ' ' + str(guess) + '\n')
 
 
 class NeuralNetTest(unittest.TestCase):
